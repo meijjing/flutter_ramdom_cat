@@ -1,12 +1,19 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
+  // main() 함수에서 async를 쓰려면 필요
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // shared_preferences 인스턴스 생성
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => CatService()),
+        ChangeNotifierProvider(create: (context) => CatService(prefs)),
       ],
       child: const MyApp(),
     ),
@@ -29,20 +36,22 @@ class MyApp extends StatelessWidget {
 class CatService extends ChangeNotifier {
   // 고양이 사진 담을 변수
   List<String> catImages = [];
+  // 좋아요 사진 담을 변수
   List<String> favoriteImages = [];
+  // SharedPreferences 인스턴스
+  SharedPreferences prefs;
+  // 생성자(Constructor)
+  CatService(this.prefs) {
+    getRandomCatImages(); // api 호출
+    favoriteImages = prefs.getStringList('favorites') ?? [];
+  }
 
   bool showProgress = false;
   double progress = 0.2;
 
-  // 생성자(Constructor)
-  CatService() {
-    getRandomCatImages(); // api 호출
-  }
-
-  final String url =
-      'https://api.thecatapi.com/v1/images/search?limit=8&mime_types=jpg';
-
   void getRandomCatImages() async {
+    const String url =
+        'https://api.thecatapi.com/v1/images/search?limit=8&mime_types=jpg';
     showProgress = true;
     try {
       Response res = await Dio().get(url);
@@ -64,7 +73,7 @@ class CatService extends ChangeNotifier {
     } else {
       favoriteImages.add(catImage);
     }
-    print(favoriteImages);
+    prefs.setStringList('favorites', favoriteImages);
     notifyListeners(); // 새로고침
   }
 }
